@@ -1,0 +1,1 @@
+This project aims to gather data about the correlation of income in a town and the enviornmental rating of each town
