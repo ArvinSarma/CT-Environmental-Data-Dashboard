@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS ct_towns (
 );
 
 CREATE TABLE IF NOT EXISTS ct_towns_median_income (
-    geoid VARCHAR(20) PRIMARY KEY REFERENCES towns(geoid) ON DELETE CASCADE,  -- Standardized GeoID (Unique Key)
+    geoid VARCHAR(20) PRIMARY KEY REFERENCES ct_towns(geoid) ON DELETE CASCADE,  -- Standardized GeoID (Unique Key)
     town_name VARCHAR(100) NOT NULL,                                          -- Town Name
     median_income NUMERIC,                                                    -- Median Household Income for a town
     margin_of_error NUMERIC,                                                  -- Margin of Error for the median income
