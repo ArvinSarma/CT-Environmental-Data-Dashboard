@@ -1,5 +1,15 @@
 import requests
 import json
+ 
+import os
+import sys
+
+# 1. PATH SETUP
+SRC_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(SRC_DIR)
+
+PROJECT_ROOT = os.path.dirname(SRC_DIR)
+OUTPUT_FILE = os.path.join(PROJECT_ROOT,"data","CT_Towns.csv")
 
 # Define the target URL for creating the replica
 url = "https://services8.arcgis.com/vfliU0HxOrbPHYI9/arcgis/rest/services/ct_towns/FeatureServer/createReplica"
@@ -45,10 +55,10 @@ try:
         file_response.raise_for_status()
 
         # Save the file (adjust extension based on your dataFormat, e.g., .zip for filegdb/sqlite)
-        output_file = "data/CT_Towns.csv"
-        with open(output_file, "wb") as f:
+       
+        with open(OUTPUT_FILE, "wb") as f:
             f.write(file_response.content)
-        print(f"Dataset downloaded successfully and saved to {output_file}")
+        print(f"Dataset downloaded successfully and saved to {OUTPUT_FILE}")
 
     elif 'replicaID' in response_data:
         # If the response returns raw data instead of a URL
