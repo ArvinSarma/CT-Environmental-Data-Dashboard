@@ -19,7 +19,7 @@ payload = {
     'f': 'json',
     'replicaName': 'Median_Household_Income',
     'layers': '0',  # Specifies the layer ID(s) to include
-    'layerQueries': '{"0":{"where":"(Year IN (\'2023\')) and (Geography_Type IN (\'Town\')) and (Race_Ethnicity IN (\'Total\'))","useGeometry":false,"queryOption":"useFilter","fields":"Geography_Name,Geography_Type,GeoID,Margin_of_Error,Race_Ethnicity,Value,Year,ObjectId"}}',
+    'layerQueries': '{"0":{"where":"(Geography_Type IN (\'Town\'))","useGeometry":false,"queryOption":"useFilter","fields":"Geography_Name,Geography_Type,GeoID,Margin_of_Error,Race_Ethnicity,Value,Year,ObjectId"}}',
     'geometry': '',
     'geometryType': 'esriGeometryEnvelope',
     'inSR': '',
