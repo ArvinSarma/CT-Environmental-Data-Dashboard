@@ -3,77 +3,92 @@ import sys
 
 # 1. PATH SETUP
 SRC_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(SRC_DIR)
+if SRC_DIR not in sys.path:
+    sys.path.append(SRC_DIR)
 
 PROJECT_ROOT = os.path.dirname(SRC_DIR)
-CSV_PATH = os.path.join(PROJECT_ROOT, "data", "Median_Household_Income.csv")
+CSV_PATH = os.path.join(PROJECT_ROOT, "data", "CT_Towns.csv")
 
 # 2. IMPORTS
 import pandas as pd
 from sqlalchemy import text
 from database import get_db_engine
+from utils.text_utils import standardize_town_name
 
 
-def load_median_income():
+def load_towns():
+    # Verify CSV file exists
     if not os.path.exists(CSV_PATH):
         print(f"Error: Could not find CSV file at {CSV_PATH}")
         return
 
-    print("Reading Median_Household_Income.csv...")
+    print("Reading CT_Towns.csv...")
     df_raw = pd.read_csv(CSV_PATH)
 
     print("Transforming columns...")
+    # Rename raw CSV columns to standard lowercase SQL column names
     df_clean = df_raw.rename(
         columns={
-            "Year": "data_year",
             "GeoID": "geoid",
-            "Geography Type": "geography_type",
-            "Geography Name": "town_name",
-            "Race/Ethnicity": "race_ethnicity",
-            "Value": "median_income",
-            "Margin of Error": "margin_of_error",
+            "FID": "fid",
+            "FID_1": "fid_1",
+            "sFIPS": "sfips",
+            "prFIPS": "prfips",
+            "tFIPS": "tfips",
+            "TownName": "town_name",
+            "CountyName": "county_name",
+            "tFIPS20": "tfips20",
+            "cFIPS20": "cfips20",
+            "PRName": "pr_name",
+            "PUMA20code": "puma20_code",
+            "PUMA20name": "puma20_name",
+            "Shape__Area": "shape_area",
+            "Shape__Length": "shape_length",
         }
     )
 
-    # 3. DATA CLEANING & TYPE CASTING
+    # Standardize town names using the centralized utility function
+    df_clean["town_name"] = df_clean["town_name"].apply(standardize_town_name)
+
+    # Ensure other text columns are cleaned strings
     df_clean["geoid"] = df_clean["geoid"].astype(str).str.strip()
-    df_clean["geography_type"] = df_clean["geography_type"].str.strip()
-    df_clean["town_name"] = df_clean["town_name"].str.strip()
-    df_clean["race_ethnicity"] = df_clean["race_ethnicity"].str.strip()
+    if "county_name" in df_clean.columns:
+        df_clean["county_name"] = df_clean["county_name"].astype(str).str.strip()
 
-    df_clean["data_year"] = pd.to_numeric(df_clean["data_year"], errors="coerce")
-    df_clean["median_income"] = pd.to_numeric(df_clean["median_income"], errors="coerce")
-    df_clean["margin_of_error"] = pd.to_numeric(df_clean["margin_of_error"], errors="coerce")
-
-    # Filter out extra columns (drops ObjectId and any raw CSV metadata)
-    db_columns = [
-        "geoid",
-        "town_name",
-        "median_income",
-        "margin_of_error",
-        "data_year",
-        "race_ethnicity",
-        "geography_type",
+    # Convert numeric FIPS columns to strings
+    fips_cols = [
+        "sfips",
+        "prfips",
+        "tfips",
+        "tfips20",
+        "cfips20",
+        "puma20_code",
     ]
-    df_clean = df_clean[db_columns]
+    for col in fips_cols:
+        if col in df_clean.columns:
+            df_clean[col] = df_clean[col].astype(str).str.strip()
 
-    # 4. CONNECT & LOAD INTO POSTGRESQL
+    # Deduplicate by primary key (town_name) to prevent duplicate key errors
+    df_clean = df_clean.drop_duplicates(subset=["town_name"])
+
+    # 3. CONNECT & LOAD INTO POSTGRESQL
     print("Connecting to PostgreSQL using database.py engine...")
     engine = get_db_engine()
 
     with engine.begin() as conn:
         print("Truncating existing records safely...")
-        conn.execute(text("TRUNCATE TABLE ct_towns_median_income CASCADE;"))
+        # Clear existing rows while preserving table structure & FK references
+        conn.execute(text("TRUNCATE TABLE ct_towns CASCADE;"))
 
-        print("Writing records into 'ct_towns_median_income' table...")
+        print("Writing records into 'ct_towns' table...")
         df_clean.to_sql(
-            "ct_towns_median_income", con=conn, if_exists="append", index=False
+            "ct_towns", con=conn, if_exists="append", index=False
         )
 
     print(
-        f"Successfully loaded {len(df_clean)} median income records into PostgreSQL!"
+        f"Successfully loaded {len(df_clean)} Connecticut towns into PostgreSQL!"
     )
 
 
 if __name__ == "__main__":
-    load_median_income()
+    load_towns()
