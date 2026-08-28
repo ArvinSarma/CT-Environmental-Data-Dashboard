@@ -2,11 +2,10 @@ import os
 import sys
 
 # 1. PATH SETUP
-# Add src/ folder to Python module search path (for database import)
 SRC_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(SRC_DIR)
+if SRC_DIR not in sys.path:
+    sys.path.append(SRC_DIR)
 
-# Path to project root data-project/ (for data/ folder)
 PROJECT_ROOT = os.path.dirname(SRC_DIR)
 CSV_PATH = os.path.join(PROJECT_ROOT, "data", "CT_Towns.csv")
 
@@ -14,6 +13,7 @@ CSV_PATH = os.path.join(PROJECT_ROOT, "data", "CT_Towns.csv")
 import pandas as pd
 from sqlalchemy import text
 from database import get_db_engine
+from utils.text_utils import standardize_town_name
 
 
 def load_towns():
@@ -42,14 +42,18 @@ def load_towns():
             "PRName": "pr_name",
             "PUMA20code": "puma20_code",
             "PUMA20name": "puma20_name",
-            "Shape__Area": "shape_area",  # Fixed double-underscore from raw CSV
-            "Shape__Length": "shape_length",  # Fixed double-underscore from raw CSV
+            "Shape__Area": "shape_area",
+            "Shape__Length": "shape_length",
         }
     )
 
-    # Ensure GeoID and text columns are clean strings
+    # Standardize town names using the centralized utility function
+    df_clean["town_name"] = df_clean["town_name"].apply(standardize_town_name)
+
+    # Ensure other text columns are cleaned strings
     df_clean["geoid"] = df_clean["geoid"].astype(str).str.strip()
-    df_clean["town_name"] = df_clean["town_name"].str.strip()
+    if "county_name" in df_clean.columns:
+        df_clean["county_name"] = df_clean["county_name"].astype(str).str.strip()
 
     # Convert numeric FIPS columns to strings
     fips_cols = [
@@ -61,7 +65,11 @@ def load_towns():
         "puma20_code",
     ]
     for col in fips_cols:
-        df_clean[col] = df_clean[col].astype(str)
+        if col in df_clean.columns:
+            df_clean[col] = df_clean[col].astype(str).str.strip()
+
+    # Deduplicate by primary key (town_name) to prevent duplicate key errors
+    df_clean = df_clean.drop_duplicates(subset=["town_name"])
 
     # 3. CONNECT & LOAD INTO POSTGRESQL
     print("Connecting to PostgreSQL using database.py engine...")
@@ -73,7 +81,6 @@ def load_towns():
         conn.execute(text("TRUNCATE TABLE ct_towns CASCADE;"))
 
         print("Writing records into 'ct_towns' table...")
-        # Append rows into existing table
         df_clean.to_sql(
             "ct_towns", con=conn, if_exists="append", index=False
         )

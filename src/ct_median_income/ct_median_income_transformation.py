@@ -3,7 +3,8 @@ import sys
 
 # 1. PATH SETUP
 SRC_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(SRC_DIR)
+if SRC_DIR not in sys.path:
+    sys.path.append(SRC_DIR)
 
 PROJECT_ROOT = os.path.dirname(SRC_DIR)
 CSV_PATH = os.path.join(PROJECT_ROOT, "data", "Median_Household_Income.csv")
@@ -12,9 +13,11 @@ CSV_PATH = os.path.join(PROJECT_ROOT, "data", "Median_Household_Income.csv")
 import pandas as pd
 from sqlalchemy import text
 from database import get_db_engine
+from utils.text_utils import standardize_town_name
 
 
 def load_median_income():
+    # Verify CSV file exists
     if not os.path.exists(CSV_PATH):
         print(f"Error: Could not find CSV file at {CSV_PATH}")
         return
@@ -23,6 +26,7 @@ def load_median_income():
     df_raw = pd.read_csv(CSV_PATH)
 
     print("Transforming columns...")
+    # Rename raw CSV columns to standard SQL column names
     df_clean = df_raw.rename(
         columns={
             "Year": "data_year",
@@ -35,20 +39,34 @@ def load_median_income():
         }
     )
 
-    # 3. DATA CLEANING & TYPE CASTING
+    # Standardize string fields using central utility
+    df_clean["town_name"] = df_clean["town_name"].apply(standardize_town_name)
+    df_clean["geography_type"] = df_clean["geography_type"].astype(str).str.strip()
+    df_clean["race_ethnicity"] = df_clean["race_ethnicity"].astype(str).str.strip()
     df_clean["geoid"] = df_clean["geoid"].astype(str).str.strip()
-    df_clean["geography_type"] = df_clean["geography_type"].str.strip()
-    df_clean["town_name"] = df_clean["town_name"].str.strip()
-    df_clean["race_ethnicity"] = df_clean["race_ethnicity"].str.strip()
 
+    # Numeric conversions
     df_clean["data_year"] = pd.to_numeric(df_clean["data_year"], errors="coerce")
     df_clean["median_income"] = pd.to_numeric(df_clean["median_income"], errors="coerce")
     df_clean["margin_of_error"] = pd.to_numeric(df_clean["margin_of_error"], errors="coerce")
 
-    # Filter out extra columns (drops ObjectId and any raw CSV metadata)
+    # Filter to town-level geographies
+    df_clean = df_clean[df_clean["geography_type"] == "Town"]
+
+    # Connect to DB to validate foreign key against ct_towns
+    print("Connecting to PostgreSQL using database.py engine...")
+    engine = get_db_engine()
+
+    with engine.connect() as conn:
+        valid_towns = pd.read_sql("SELECT town_name FROM ct_towns", conn)["town_name"].tolist()
+    
+    valid_towns_set = set(standardize_town_name(t) for t in valid_towns)
+    df_clean = df_clean[df_clean["town_name"].isin(valid_towns_set)]
+
+    # Select required columns and deduplicate composite key
     db_columns = [
-        "geoid",
         "town_name",
+        "geoid",
         "median_income",
         "margin_of_error",
         "data_year",
@@ -56,13 +74,11 @@ def load_median_income():
         "geography_type",
     ]
     df_clean = df_clean[db_columns]
+    df_clean = df_clean.drop_duplicates(subset=["town_name", "data_year", "race_ethnicity"])
 
-    # 4. CONNECT & LOAD INTO POSTGRESQL
-    print("Connecting to PostgreSQL using database.py engine...")
-    engine = get_db_engine()
-
+    # 3. LOAD INTO POSTGRESQL
     with engine.begin() as conn:
-        print("Truncating existing records safely...")
+        print("Truncating existing median income records safely...")
         conn.execute(text("TRUNCATE TABLE ct_towns_median_income CASCADE;"))
 
         print("Writing records into 'ct_towns_median_income' table...")
