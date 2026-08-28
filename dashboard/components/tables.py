@@ -10,27 +10,20 @@ def render_data_table(df):
     display_df["median_income"] = display_df["median_income"].apply(
         lambda x: f"${x:,.0f}" if pd.notnull(x) else "N/A"
     )
-    display_df["margin_of_error"] = display_df["margin_of_error"].apply(
-        lambda x: f"±${x:,.0f}" if pd.notnull(x) else "N/A"
-    )
 
     st.dataframe(
         display_df[
             [
                 "town_name",
-                "geoid",
                 "median_income",
-                "margin_of_error",
                 "environmental_impact_score",
                 "data_year",
             ]
         ].rename(
             columns={
                 "town_name": "Town Name",
-                "geoid": "GeoID",
                 "median_income": "Median Income",
-                "margin_of_error": "Margin of Error",
-                "environmental_impact_score": "Environmental Score",
+                "environmental_impact_score": "Hazardous Waste Reports",
                 "data_year": "Year",
             }
         ),

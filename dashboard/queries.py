@@ -1,7 +1,7 @@
 import os
 import sys
-import numpy as np
 import pandas as pd
+from sqlalchemy import text
 
 # Add src/ to sys.path to access database.py
 SRC_DIR = os.path.join(
@@ -12,37 +12,42 @@ if SRC_DIR not in sys.path:
 
 from database import get_db_engine
 
+
 def get_combined_town_data():
     """Fetches real median income data from PostgreSQL, aggregates it by town/year, 
-    and adds a temporary mock environmental score.
+    and joins actual hazardous waste report counts per town from ct_hazardous_data.
     """
     engine = get_db_engine()
 
-    # We can query directly from ct_towns_median_income since town_name is now there.
-    # We filter out NULL medians directly at the SQL level.
     query = """
+        WITH income_agg AS (
+            SELECT 
+                town_name,
+                data_year,
+                PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY median_income) AS median_income
+            FROM ct_towns_median_income
+            WHERE median_income IS NOT NULL
+            GROUP BY town_name, data_year
+        ),
+        hazardous_agg AS (
+            SELECT 
+                town_name,
+                COUNT(*) AS num_reports
+            FROM ct_hazardous_data
+            WHERE town_name IS NOT NULL
+            GROUP BY town_name
+        )
         SELECT 
-            town_name,
-            median_income,
-            data_year
-        FROM ct_towns_median_income
-        WHERE median_income IS NOT NULL;
+            i.town_name,
+            i.data_year,
+            i.median_income,
+            COALESCE(h.num_reports, 0) AS environmental_impact_score
+        FROM income_agg i
+        LEFT JOIN hazardous_agg h 
+            ON i.town_name = h.town_name;
     """
 
     with engine.connect() as conn:
-        df = pd.read_sql(query, conn)
+        df = pd.read_sql(text(query), conn)
 
-    # Aggregate: Calculate the total median income per town per year across all races
-    df_aggregated = (
-        df.groupby(["town_name", "data_year"], as_index=False)["median_income"]
-        .median()
-    )
-
-    # ------------------------------------------------------------------
-    # TEMPORARY MOCK ENVIRONMENTAL DATA
-    # Replace this block with a real SQL JOIN once your friend's PostgreSQL table is live!
-    # ------------------------------------------------------------------
-    np.random.seed(42)  # Keep values consistent across reloads
-    df_aggregated["environmental_impact_score"] = np.random.randint(10, 150, size=len(df_aggregated))
-
-    return df_aggregated
+    return df
