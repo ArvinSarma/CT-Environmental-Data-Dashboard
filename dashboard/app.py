@@ -26,7 +26,15 @@ except Exception as e:
 # 2. Sidebar Filters
 st.sidebar.header("Dashboard Controls")
 
-all_towns = sorted(df["town_name"].dropna().unique())
+# Year Selector Widget
+available_years = sorted(df["data_year"].dropna().unique(), reverse=True)
+selected_year = st.sidebar.selectbox("Select Year", available_years)
+
+# Filter the dataset to only include the selected year
+df_year = df[df["data_year"] == selected_year]
+
+# Town Selector Widget
+all_towns = sorted(df_year["town_name"].dropna().unique())
 default_towns = [
     t for t in ["Greenwich", "Hartford", "Stamford", "Bridgeport"] if t in all_towns
 ]
@@ -35,19 +43,19 @@ selected_towns = st.sidebar.multiselect(
     "Compare Specific Towns", options=all_towns, default=default_towns
 )
 
-# 3. Render Page
-render_kpi_cards(df)
+# 3. Render Page Components (Passing the filtered df_year)
+render_kpi_cards(df_year)
 
 st.markdown("---")
 
 tab1, tab2 = st.tabs(["Income vs. Environment Scatter Plot", "Town Comparison"])
 
 with tab1:
-    render_scatter_plot(df)
+    render_scatter_plot(df_year)
 
 with tab2:
-    render_town_comparison_chart(df, selected_towns)
+    render_town_comparison_chart(df_year, selected_towns)
 
 st.markdown("---")
 
-render_data_table(df)
+render_data_table(df_year)

@@ -12,37 +12,37 @@ if SRC_DIR not in sys.path:
 
 from database import get_db_engine
 
-
 def get_combined_town_data():
-    """Fetches real median income data from PostgreSQL and adds a temporary mock
-
-    environmental score until the backend pipeline lands.
+    """Fetches real median income data from PostgreSQL, aggregates it by town/year, 
+    and adds a temporary mock environmental score.
     """
     engine = get_db_engine()
 
-    # Query real income and town data
+    # We can query directly from ct_towns_median_income since town_name is now there.
+    # We filter out NULL medians directly at the SQL level.
     query = """
         SELECT 
-            t.town_name,
-            i.geoid,
-            i.median_income,
-            i.margin_of_error,
-            i.data_year,
-            i.race_ethnicity,
-            i.geography_type
-        FROM ct_towns_median_income i
-        JOIN ct_towns t ON i.geoid = t.geoid
-        ORDER BY i.median_income DESC NULLS LAST;
+            town_name,
+            median_income,
+            data_year
+        FROM ct_towns_median_income
+        WHERE median_income IS NOT NULL;
     """
 
     with engine.connect() as conn:
         df = pd.read_sql(query, conn)
 
+    # Aggregate: Calculate the total median income per town per year across all races
+    df_aggregated = (
+        df.groupby(["town_name", "data_year"], as_index=False)["median_income"]
+        .median()
+    )
+
     # ------------------------------------------------------------------
     # TEMPORARY MOCK ENVIRONMENTAL DATA
-    # Replace this block with a real SQL JOIN once your friend's table is live!
+    # Replace this block with a real SQL JOIN once your friend's PostgreSQL table is live!
     # ------------------------------------------------------------------
     np.random.seed(42)  # Keep values consistent across reloads
-    df["environmental_impact_score"] = np.random.randint(10, 150, size=len(df))
+    df_aggregated["environmental_impact_score"] = np.random.randint(10, 150, size=len(df_aggregated))
 
-    return df
+    return df_aggregated

@@ -13,7 +13,6 @@ def render_scatter_plot(df):
         hover_data={
             "median_income": ":$,.0f",
             "environmental_impact_score": ":,",
-            "margin_of_error": ":$,.0f",
             "town_name": False,
         },
         title="Town Median Income vs. Environmental Impact Score",
