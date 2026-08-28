@@ -7,8 +7,10 @@ def render_data_table(df):
     st.subheader("Raw Data Explorer")
 
     display_df = df.copy()
-    display_df["median_income"] = display_df["median_income"].apply(
-        lambda x: f"${x:,.0f}" if pd.notnull(x) else "N/A"
+
+    # Ensure median_income is numeric for proper sorting
+    display_df["median_income"] = pd.to_numeric(
+        display_df["median_income"], errors="coerce"
     )
 
     st.dataframe(
@@ -27,6 +29,12 @@ def render_data_table(df):
                 "data_year": "Year",
             }
         ),
+        column_config={
+            "Median Income": st.column_config.NumberColumn(
+                "Median Income",
+                format="$%d",  # Formats visually as currency while preserving numeric sorting
+            )
+        },
         use_container_width=True,
     )
 

@@ -22,12 +22,13 @@ def get_combined_town_data():
 
     # The CTE now prioritizes 'All Races' / 'Total' for >= 2023, 
     # and strictly uses 'White Alone' (or 'White') as the proxy for pre-2023.
+    # Explicitly CASTs median_income to NUMERIC to enforce proper numerical sorting downstream.
     query = """
         WITH filtered_income AS (
             SELECT 
                 town_name,
                 data_year,
-                median_income,
+                CAST(median_income AS NUMERIC) AS median_income,
                 LOWER(TRIM(race_ethnicity)) AS race_clean,
                 ROW_NUMBER() OVER (
                     PARTITION BY town_name, data_year 
