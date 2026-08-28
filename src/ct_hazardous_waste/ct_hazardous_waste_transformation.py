@@ -80,8 +80,12 @@ def load_hazardous_data():
     df_final = df_merged.drop(columns=["town_name_std"])
 
     # 5. LOAD INTO POSTGRESQL
-    print("Writing processed records into 'ct_hazardous_data'...")
+    
     with engine.begin() as conn:
+        print("Truncating existing ct hazards records safely...")
+        conn.execute(text("TRUNCATE TABLE ct_hazardous_data CASCADE;"))
+
+        print("Writing processed records into 'ct_hazardous_data'...")
         df_final.to_sql(
             "ct_hazardous_data",
             con=conn,
