@@ -14,15 +14,11 @@ from database import get_db_engine
 
 
 def get_combined_town_data():
-    """Fetches real median income data from PostgreSQL using 'White Alone' as a proxy 
-    for pre-2023 data (or 'All Races' when available), and joins actual hazardous waste 
-    report counts per town from ct_hazardous_data.
+    """Fetches real median income data from PostgreSQL and joins hazardous waste reports 
+    aggregated per town and year extracted directly from the date_shipped DATE column.
     """
     engine = get_db_engine()
 
-    # The CTE now prioritizes 'All Races' / 'Total' for >= 2023, 
-    # and strictly uses 'White Alone' (or 'White') as the proxy for pre-2023.
-    # Explicitly CASTs median_income to NUMERIC to enforce proper numerical sorting downstream.
     query = """
         WITH filtered_income AS (
             SELECT 
@@ -53,10 +49,12 @@ def get_combined_town_data():
         hazardous_agg AS (
             SELECT 
                 town_name,
+                EXTRACT(YEAR FROM date_shipped)::INT AS data_year,
                 COUNT(*) AS num_reports
             FROM ct_hazardous_data
-            WHERE town_name IS NOT NULL
-            GROUP BY town_name
+            WHERE town_name IS NOT NULL 
+              AND date_shipped IS NOT NULL
+            GROUP BY town_name, EXTRACT(YEAR FROM date_shipped)::INT
         )
         SELECT 
             i.town_name,
@@ -65,7 +63,8 @@ def get_combined_town_data():
             COALESCE(h.num_reports, 0) AS environmental_impact_score
         FROM income_agg i
         LEFT JOIN hazardous_agg h 
-            ON i.town_name = h.town_name;
+            ON i.town_name = h.town_name 
+           AND i.data_year = h.data_year;
     """
 
     with engine.connect() as conn:
