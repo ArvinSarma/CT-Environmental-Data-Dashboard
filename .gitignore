@@ -12,3 +12,8 @@ data/*
 
 #vscode configuration files
 .vscode/
+
+#build files
+build/
+dist/
+src/ct_data_project.egg-info/
