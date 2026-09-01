@@ -1,29 +1,19 @@
 import os
 import sys
-
-# 1. PATH SETUP
-SRC_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if SRC_DIR not in sys.path:
-    sys.path.append(SRC_DIR)
-
-PROJECT_ROOT = os.path.dirname(SRC_DIR)
-CSV_PATH = os.path.join(PROJECT_ROOT, "data", "CT_Towns.csv")
-
-# 2. IMPORTS
 import pandas as pd
 from sqlalchemy import text
-from database import get_db_engine
-from utils.text_utils import standardize_town_name
+from ct_data.database import get_db_engine
+from ct_data.utils.text_utils import standardize_town_name
 
 
-def load_towns():
+def load_towns(filename):
     # Verify CSV file exists
-    if not os.path.exists(CSV_PATH):
-        print(f"Error: Could not find CSV file at {CSV_PATH}")
+    if not os.path.exists(filename):
+        print(f"Error: Could not find CSV file at {filename}")
         return
 
     print("Reading CT_Towns.csv...")
-    df_raw = pd.read_csv(CSV_PATH)
+    df_raw = pd.read_csv(filename)
 
     print("Transforming columns...")
     # Rename raw CSV columns to standard lowercase SQL column names
@@ -88,7 +78,14 @@ def load_towns():
     print(
         f"Successfully loaded {len(df_clean)} Connecticut towns into PostgreSQL!"
     )
-
+    return len(df_clean)
 
 if __name__ == "__main__":
-    load_towns()
+    # 1. PATH SETUP
+    SRC_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    if SRC_DIR not in sys.path:
+        sys.path.append(SRC_DIR)
+
+    PROJECT_ROOT = os.path.dirname(SRC_DIR)
+    CSV_PATH = os.path.join(PROJECT_ROOT, "data", "CT_Towns.csv")
+    load_towns(CSV_PATH)

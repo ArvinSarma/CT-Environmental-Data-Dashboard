@@ -9,7 +9,6 @@ load_dotenv()
 # Example authenticated client (needed for non-public datasets):
 def get_data(datasetId, limitNum, fileName):
     ctgov_api = os.getenv("CTGOV_API")
-    print(ctgov_api)
     
     client = Socrata('data.ct.gov',
                     ctgov_api)

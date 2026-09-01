@@ -2,27 +2,18 @@ import os
 import sys
 import pandas as pd
 from sqlalchemy import text
-
-# 1. PATH SETUP
-SRC_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(SRC_DIR)
-
-PROJECT_ROOT = os.path.dirname(SRC_DIR)
-CSV_PATH = os.path.join(PROJECT_ROOT, "data", "Hazardous_waste.csv") # Update filename if needed
-
-# 2. IMPORTS
-from database import get_db_engine
-from utils.text_utils import standardize_town_name  
+from ct_data.database import get_db_engine
+from ct_data.utils.text_utils import standardize_town_name
 
 
 # 3. INGESTION & LINKING WORKFLOW
-def load_hazardous_data():
-    if not os.path.exists(CSV_PATH):
-        print(f"Error: Could not find CSV file at {CSV_PATH}")
+def load_hazardous_data(filename):
+    if not os.path.exists(filename):
+        print(f"Error: Could not find CSV file at {filename}")
         return
 
     print("Reading CSV file...")
-    df_raw = pd.read_csv(CSV_PATH)
+    df_raw = pd.read_csv(filename)
 
     print("Transforming columns to match PostgreSQL schema...")
     # Rename CSV headers directly to match your SQL table definitions
@@ -95,7 +86,14 @@ def load_hazardous_data():
         )
 
     print(f"Successfully standardized, linked, and inserted {len(df_final)} records into PostgreSQL!")
-
+    return len(df_final)
 
 if __name__ == "__main__":
-    load_hazardous_data()
+    # 1. PATH SETUP
+    SRC_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    if SRC_DIR not in sys.path:
+        sys.path.append(SRC_DIR)
+
+    PROJECT_ROOT = os.path.dirname(SRC_DIR)
+    CSV_PATH = os.path.join(PROJECT_ROOT, "data", "Hazardous_waste.csv")
+    load_hazardous_data(CSV_PATH)

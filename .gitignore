@@ -17,3 +17,4 @@ data/*
 build/
 dist/
 src/ct_data_project.egg-info/
+src/ct_environmental_data_dashboard.egg-info/
