@@ -33,7 +33,7 @@ def hazardous_waste_etl_pipeline():
         """Extracting hazardous waste data from source."""
         filepath = "/opt/airflow/shared_data/ct_data"
         # Calls extract_data() from source 3
-        filename = hazardous_waste_ingestion.extract_data(filepath)
+        filename = ct_hazardous_waste_ingestion.extract_data(filepath)
         print(f"Extracted data to: {filename}")
         return filename  # Automatically passed to the next task via XCom
 
@@ -42,7 +42,7 @@ def hazardous_waste_etl_pipeline():
     def transform(filename):
         """Processing/transforming and loading data into database for CT hazardous waste."""
         # Calls load_hazardous_data() from source 4
-        data_cnt = hazardous_waste_transformation.load_hazardous_data(filename)
+        data_cnt = ct_hazardous_waste_transformation.load_hazardous_data(filename)
         print(f"Transformed data (records inserted): {data_cnt}")
         return data_cnt
 
