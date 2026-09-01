@@ -2,8 +2,8 @@ from datetime import datetime, timedelta
 from airflow.decorators import dag, task
 
 # Adjust these imports to match your actual file names in the ct_data module
-from ct_data.ct_hazardous_waste import hazardous_waste_ingestion
-from ct_data.ct_hazardous_waste import hazardous_waste_transformation
+from ct_data.ct_hazardous_waste import ct_hazardous_waste_ingestion
+from ct_data.ct_hazardous_waste import ct_hazardous_waste_transformation
 
 # Define default arguments for the DAG
 default_args = {
